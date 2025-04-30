@@ -1,144 +1,245 @@
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 
 const JogoDaVelha = () => {
   const [tabuleiro, setTabuleiro] = useState<string[]>(Array(9).fill(''));
-  const [resultado, setResultado] = useState<boolean>();
-  const [turno, setTurno] = useState<'x' | 'o'>('x');
+  const [jogadorAtual, setJogadorAtual] = useState<'x' | 'o'>('x');
+  const [vencedor, setVencedor] = useState<string | null>(null);
+  const [empate, setEmpate] = useState(false);
+  const [nomeJogador, setNomeJogador] = useState('');
+  const [jogoIniciado, setJogoIniciado] = useState(false);
 
-  // adicionar alert
-  //  
 
-  // Transformar o tabuleiro 1D em linhas 2D para mapeamento
-  const linhas = () => [
-    tabuleiro.slice(0, 3),
-    tabuleiro.slice(3, 6),
-    tabuleiro.slice(6, 9),
-  ]
-
-  const handlePress = (index: number) => {
-    if (tabuleiro[index] === '' && resultado === undefined) {
-      const novoTabuleiro = [...tabuleiro];
-      novoTabuleiro[index] = turno;
-      setTabuleiro(novoTabuleiro);
-
-      setTurno(turno === 'x' ? 'o' : 'x');
-
-      verificaVencedor(novoTabuleiro);
-    }
-  };
-
-  const verificaVencedor = (tabuleiro: string[]) => {
-    const combinacoes = [
+  const verificarFimDoJogo = (tabuleiroAtual: string[]) => {
+    const combinacoesVitoria = [
       [0, 1, 2], [3, 4, 5], [6, 7, 8], // linhas
-      [0, 3, 6], [1, 4, 7], [2, 5, 8], // colunas (corrigido)
+      [0, 3, 6], [1, 4, 7], [2, 5, 8], // colunas
       [0, 4, 8], [2, 4, 6]             // diagonais
-    ]
+    ];
 
-    for (const combinacao of combinacoes) {
+    for (const combinacao of combinacoesVitoria) {
       const [a, b, c] = combinacao;
-      if (tabuleiro[a] && tabuleiro[a] === tabuleiro[b] && tabuleiro[a] === tabuleiro[c]) {
-        setResultado(true);
+      if (tabuleiroAtual[a] && 
+          tabuleiroAtual[a] === tabuleiroAtual[b] && 
+          tabuleiroAtual[a] === tabuleiroAtual[c]) {
+        setVencedor(tabuleiroAtual[a]);
         return;
       }
     }
 
-    if (tabuleiro.every(celula => celula !== '')) {
-      setResultado(false);
+    // Verifica empate
+    if (!tabuleiroAtual.includes('') && !vencedor) {
+      setEmpate(true);
     }
-  }
+  };
+
+
+  const fazerJogada = (index: number) => {
+    if (jogoIniciado && !tabuleiro[index] && !vencedor && !empate && jogadorAtual === 'x') {
+      const novoTabuleiro = [...tabuleiro];
+      novoTabuleiro[index] = 'x';
+      setTabuleiro(novoTabuleiro);
+      setJogadorAtual('o');
+      verificarFimDoJogo(novoTabuleiro);
+    }
+  };
+
+
+  const jogadaCPU = () => {
+    if (jogoIniciado && !vencedor && !empate && jogadorAtual === 'o') {
+      const indicesVazios = tabuleiro
+        .map((celula, index) => celula === '' ? index : -1)
+        .filter(index => index !== -1);
+
+      if (indicesVazios.length > 0) {
+        const indiceAleatorio = indicesVazios[Math.floor(Math.random() * indicesVazios.length)];
+        setTimeout(() => {
+          const novoTabuleiro = [...tabuleiro];
+          novoTabuleiro[indiceAleatorio] = 'o';
+          setTabuleiro(novoTabuleiro);
+          setJogadorAtual('x');
+          verificarFimDoJogo(novoTabuleiro);
+        }, 500); // Delay para parecer que a CPU está "pensando"
+      }
+    }
+  };
+
+  // Efeito para controlar a jogada da CPU
+  useEffect(() => {
+    if (jogadorAtual === 'o' && jogoIniciado && !vencedor && !empate) {
+      jogadaCPU();
+    }
+  }, [jogadorAtual, jogoIniciado]);
+
+  const reiniciarJogo = () => {
+    setTabuleiro(Array(9).fill(''));
+    setJogadorAtual('x');
+    setVencedor(null);
+    setEmpate(false);
+  };
+
+  const iniciarJogo = () => {
+    if (nomeJogador.trim()) {
+      setJogoIniciado(true);
+      reiniciarJogo();
+    } else {
+      alert('Por favor, insira seu nome!');
+    }
+  };
+
+  // Renderizar célula do tabuleiro
+  const renderCelula = (index: number) => {
+    return (
+      <TouchableOpacity
+        style={styles.celula}
+        onPress={() => fazerJogada(index)}
+        disabled={!!vencedor || empate || jogadorAtual !== 'x'}
+      >
+        <Text style={styles.textoCelula}>{tabuleiro[index]}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
-       <Text style={styles.turnoText}>Turno: {turno.toUpperCase()}</Text>
-        <Text style={styles.resultado}>
-          {resultado !== undefined ? (resultado ? 'Vencedor!' : 'Empate') : ''}
-        </Text>
-      <View style={styles.botoes}>
-        {linhas().map((linha: string[], i: number) => (
-          <View key={i} style={styles.row}>
-            {linha.map((celula, j) => (
-              <TouchableOpacity
-                key={j}
-                style={styles.botao}
-                onPress={() => handlePress(i * 3 + j)} //calculo do indice no tabuleiro 1d
-              >
-                <Text style={styles.botaoTexto}>{celula}</Text>
-              </TouchableOpacity>
-            ))}
+      {!jogoIniciado ? (
+        <View style={styles.telaInicio}>
+          <Text style={styles.titulo}>Jogo da Velha</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Digite seu nome"
+            value={nomeJogador}
+            onChangeText={setNomeJogador}
+          />
+          <TouchableOpacity style={styles.botao} onPress={iniciarJogo}>
+            <Text style={styles.textoBotao}>Iniciar Jogo</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.telaJogo}>
+          <Text style={styles.titulo}>Bem-vindo, {nomeJogador}!</Text>
+          
+          {vencedor && (
+            <Text style={styles.resultado}>
+              {vencedor === 'x' ? `${nomeJogador} venceu!` : 'CPU venceu!'}
+            </Text>
+          )}
+          
+          {empate && !vencedor && (
+            <Text style={styles.resultado}>Empate!</Text>
+          )}
+          
+          {!vencedor && !empate && (
+            <Text style={styles.turno}>
+              {jogadorAtual === 'x' ? 'Sua vez (X)' : 'Vez da CPU (O)'}
+            </Text>
+          )}
+
+          <View style={styles.tabuleiro}>
+            <View style={styles.linha}>
+              {renderCelula(0)}
+              {renderCelula(1)}
+              {renderCelula(2)}
+            </View>
+            <View style={styles.linha}>
+              {renderCelula(3)}
+              {renderCelula(4)}
+              {renderCelula(5)}
+            </View>
+            <View style={styles.linha}>
+              {renderCelula(6)}
+              {renderCelula(7)}
+              {renderCelula(8)}
+            </View>
           </View>
-        ))}
-      </View>
+
+          {(vencedor || empate) && (
+            <TouchableOpacity style={styles.botao} onPress={reiniciarJogo}>
+              <Text style={styles.textoBotao}>Jogar Novamente</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#faebd7',
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 10,
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    padding: 20,
   },
-  turnoText: {
+  telaInicio: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  telaJogo: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  titulo: {
     fontSize: 24,
-    color: '#a52a2a',
     fontWeight: 'bold',
-    textAlign: 'center',
     marginBottom: 20,
+    color: '#333',
   },
-  botoes: {
-    width: '30%', // Controla a largura total do grid
-    aspectRatio: 1, // Mantém quadrado
-    maxWidth: 400, // Limite máximo de tamanho
-    maxHeight: 400
+  input: {
+    width: '80%',
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 20,
+    fontSize: 16,
   },
-  row: {
-    flex: 1,
+  tabuleiro: {
+    marginVertical: 20,
+  },
+  linha: {
     flexDirection: 'row',
-    marginBottom: 5,
   },
-  botao: {
-    flex: 1,
-    backgroundColor: '#a52a2a',
-    marginHorizontal: 5,
+  celula: {
+    width: 80,
+    height: 80,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 10,
-    aspectRatio: 1, // Mantém os botões quadrados
-    maxWidth: 100,
+    borderWidth: 1,
+    borderColor: '#333',
+    backgroundColor: '#fff',
+  },
+  textoCelula: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  turno: {
+    fontSize: 18,
+    marginBottom: 10,
+    color: '#333',
   },
   resultado: {
-    fontSize: 30,
+    fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 20,
-    height: 40,
-    color: '#a52a2a',
+    color: 'green',
   },
-  botaoTexto: {
-    fontSize: 36,
-    color: '#fff',
+  botao: {
+    backgroundColor: '#4CAF50',
+    padding: 15,
+    borderRadius: 8,
+    marginTop: 20,
+    width: '80%',
+    alignItems: 'center',
+  },
+  textoBotao: {
+    color: 'white',
+    fontSize: 18,
     fontWeight: 'bold',
   },
-  header: {
-    flex: 1,
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderBottomColor: "#ddd",
-    borderBottomWidth: 1,
-    paddingBottom: 12,
-    marginBottom: 16,
-    marginTop: 16,
-  }
 });
-
-const header = () => {
-  return (
-    <View style={styles.header}>
-      <Text></Text>
-    </View>
-  );
-}
 
 export default JogoDaVelha;
