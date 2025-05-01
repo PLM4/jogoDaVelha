@@ -8,31 +8,38 @@ const JogoDaVelha = () => {
   const [empate, setEmpate] = useState(false);
   const [nomeJogador, setNomeJogador] = useState('');
   const [jogoIniciado, setJogoIniciado] = useState(false);
+  const [placar, setPlacar] = useState({ jogador: 0, cpu: 0, empates: 0 });
 
 
   const verificarFimDoJogo = (tabuleiroAtual: string[]) => {
     const combinacoesVitoria = [
-      [0, 1, 2], [3, 4, 5], [6, 7, 8], // linhas
-      [0, 3, 6], [1, 4, 7], [2, 5, 8], // colunas
-      [0, 4, 8], [2, 4, 6]             // diagonais
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6]
     ];
 
     for (const combinacao of combinacoesVitoria) {
       const [a, b, c] = combinacao;
-      if (tabuleiroAtual[a] && 
-          tabuleiroAtual[a] === tabuleiroAtual[b] && 
-          tabuleiroAtual[a] === tabuleiroAtual[c]) {
+      if (tabuleiroAtual[a] &&
+        tabuleiroAtual[a] === tabuleiroAtual[b] &&
+        tabuleiroAtual[a] === tabuleiroAtual[c]) {
         setVencedor(tabuleiroAtual[a]);
+
+        setPlacar(prev => ({
+          ...prev,
+          jogador: tabuleiroAtual[a] === 'x' ? prev.jogador + 1 : prev.jogador,
+          cpu: tabuleiroAtual[a] === 'o' ? prev.cpu + 1 : prev.cpu
+        }));
+
         return;
       }
-    }
 
-    // Verifica empate
-    if (!tabuleiroAtual.includes('') && !vencedor) {
-      setEmpate(true);
+      if (!tabuleiroAtual.includes('') && !vencedor) {
+        setEmpate(true);
+        setPlacar(prev => ({ ...prev, empates: prev.empates + 1 }));
+      }
     }
   };
-
 
   const fazerJogada = (index: number) => {
     if (jogoIniciado && !tabuleiro[index] && !vencedor && !empate && jogadorAtual === 'x') {
@@ -43,7 +50,6 @@ const JogoDaVelha = () => {
       verificarFimDoJogo(novoTabuleiro);
     }
   };
-
 
   const jogadaCPU = () => {
     if (jogoIniciado && !vencedor && !empate && jogadorAtual === 'o') {
@@ -64,7 +70,6 @@ const JogoDaVelha = () => {
     }
   };
 
-  // Efeito para controlar a jogada da CPU
   useEffect(() => {
     if (jogadorAtual === 'o' && jogoIniciado && !vencedor && !empate) {
       jogadaCPU();
@@ -118,20 +123,63 @@ const JogoDaVelha = () => {
       ) : (
         <View style={styles.telaJogo}>
           <Text style={styles.titulo}>Bem-vindo, {nomeJogador}!</Text>
-          
-          {vencedor && (
-            <Text style={styles.resultado}>
-              {vencedor === 'x' ? `${nomeJogador} venceu!` : 'CPU venceu!'}
+
+          <View style={styles.placarContainer}>
+            <Text style={styles.tituloPlacar}>Placar</Text>
+
+            <View style={styles.placarLinha}>
+              <View style={styles.placarItem}>
+                <Text style={styles.placarLabel}>Você</Text>
+                <Text style={styles.placarValue}>{placar.jogador}</Text>
+              </View>
+
+              <View style={styles.placarItem}>
+                <Text style={styles.placarLabel}>Empates</Text>
+                <Text style={styles.placarValue}>{placar.empates}</Text>
+              </View>
+
+              <View style={styles.placarItem}>
+                <Text style={styles.placarLabel}>CPU</Text>
+                <Text style={styles.placarValue}>{placar.cpu}</Text>
+              </View>
+            </View>
+
+            <View style={styles.turnoContainer}>
+              <Text style={[
+                styles.turnoText,
+                jogadorAtual === 'x' && styles.turnoAtivo
+              ]}>
+                Sua vez (X)
+              </Text>
+              <Text style={[
+                styles.turnoText,
+                jogadorAtual === 'o' && styles.turnoAtivo
+              ]}>
+                Vez da CPU (O)
+              </Text>
+            </View>
+          </View>
+
+          {/* Indicador de turno */}
+          <View style={styles.turnoContainer}>
+            <Text style={[
+              styles.turnoText,
+              jogadorAtual === 'x' && styles.turnoAtivo
+            ]}>
+              Sua vez (X)
             </Text>
-          )}
-          
-          {empate && !vencedor && (
-            <Text style={styles.resultado}>Empate!</Text>
-          )}
-          
-          {!vencedor && !empate && (
-            <Text style={styles.turno}>
-              {jogadorAtual === 'x' ? 'Sua vez (X)' : 'Vez da CPU (O)'}
+            <Text style={[
+              styles.turnoText,
+              jogadorAtual === 'o' && styles.turnoAtivo
+            ]}>
+              Vez da CPU (O)
+            </Text>
+          </View>
+
+          {(vencedor || empate) && (
+            <Text style={styles.resultado}>
+              {vencedor === 'x' ? `${nomeJogador} venceu!` :
+                vencedor === 'o' ? 'CPU venceu!' : 'Empate!'}
             </Text>
           )}
 
@@ -165,6 +213,57 @@ const JogoDaVelha = () => {
 };
 
 const styles = StyleSheet.create({
+
+  placarContainer: {
+    width: '50%',
+    marginBottom: 20,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 10,
+    padding: 15,
+    elevation: 3,
+  },
+  tituloPlacar: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
+    color: '#333',
+  },
+  placarLinha: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 15,
+  },
+  placarItem: {
+    alignItems: 'center',
+  },
+  placarLabel: {
+    fontSize: 16,
+    color: '#555',
+    marginBottom: 5,
+  },
+  placarValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+  },
+  turnoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
+  },
+  turnoText: {
+    fontSize: 16,
+    color: '#95a5a6',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 15,
+  },
+  turnoAtivo: {
+    color: '#fff',
+    backgroundColor: '#3498db',
+    fontWeight: 'bold',
+  },
   container: {
     flex: 1,
     justifyContent: 'center',
@@ -210,6 +309,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
     backgroundColor: '#fff',
+    borderRadius: 8,
   },
   textoCelula: {
     fontSize: 36,
